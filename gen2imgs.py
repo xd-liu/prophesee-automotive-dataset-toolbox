@@ -15,13 +15,14 @@ def make_event_histogram(events, shape=(240, 304)):
     # count the number of positive and negative events per pixel
     pos = events[events[:, 3] > 0]
     neg = events[events[:, 3] < 0]
+
     pos_x, pos_y = pos[:, 0].astype(np.int32), pos[:, 1].astype(np.int32)
     pos_count = np.bincount(pos_x + pos_y * W, minlength=H * W).reshape(H, W)
     neg_x, neg_y = neg[:, 0].astype(np.int32), neg[:, 1].astype(np.int32)
     neg_count = np.bincount(neg_x + neg_y * W, minlength=H * W).reshape(H, W)
 
     # [H, W, 2]
-    result = np.stack([pos_count, neg_count], dim=2)
+    result = np.stack([pos_count, neg_count], axis=2)
     return result
 
 
@@ -31,7 +32,7 @@ def vis_hist(hist_nd):
         np.zeros(hist_nd[:, :, 0].shape),
         hist_nd[:, :, 1],
     ],
-                   dim=2)
+                   axis=2)
 
     mean = np.mean(img)
     std = np.std(img)
@@ -45,11 +46,13 @@ def vis_hist(hist_nd):
     mask = np.where(np.sum(img, 2) == 0)
     img[mask] = [1., 1., 1.]
 
-    weight_mask = np.sum(img, 2)
-    max_weight = 1.
-    weight_mask[weight_mask > max_weight] = max_weight
-    weight_mask = weight_mask / weight_mask.max()
+    # weight_mask = np.sum(img, 2)
+    # max_weight = 2.
+    # weight_mask[weight_mask > max_weight] = max_weight
+    # weight_mask = weight_mask / weight_mask.max()
     background = np.ones_like(img)
+    # dev
+    weight_mask = np.ones_like(np.sum(img, 2))
     img = weight_mask[...,
                       None] * img + (1. - weight_mask[..., None]) * background
     img = img * 255.
@@ -60,11 +63,11 @@ def vis_hist(hist_nd):
 
 
 def event2frame(events):
-    events = events['arr_0'].item()['event_data']
     events = np.vstack(
-        [events['x'], events['y'], events['t'], events['p'] * 2 - 1]).T
+        [events['x'], events['y'], events['t'], events['p'].astype(np.float) * 2 - 1]).T
 
     events = events.astype(np.float)
+    # print(events[:,3].min(), )s
     hist_nd = make_event_histogram(events, shape=SENSOR_SIZE)
     img = vis_hist(hist_nd)
     return img
