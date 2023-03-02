@@ -2,7 +2,7 @@ import argparse
 import os
 import numpy as np
 from src.io.psee_loader import PSEELoader
-
+from src.io.box_loading import reformat_boxes
 
 def main(args):
     '''read label file'''
@@ -12,12 +12,19 @@ def main(args):
         if ".npy" not in file:
             continue
 
-        print("Processing file: {}".format(file))
+        
         label = np.load(os.path.join(root_dir, file), allow_pickle=True)
+        label = reformat_boxes(label)
+        # print(label.dtype.names)
         t = label['t'].astype(np.float)
         uni_t = np.unique(t)
         diff_t = np.diff(uni_t)
-        print(diff_t)
+        remainder = np.mod(diff_t, 500000)
+        # print(remainder)
+        strange = diff_t[[remainder > 0]]
+        if len(strange) > 0:
+            print("Processing file: {}".format(file))
+            print(strange[0])
 
 
 if __name__ == "__main__":
