@@ -42,7 +42,12 @@ def vis_hist(hist_nd):
     max_value = np.max(img)
     min_value = np.min(img)
 
-    img = (img - min_value) / (max_value - min_value)
+    if max_value == min_value:
+        if max_value > 0:
+            img = img / max_value
+    else:
+        img = (img - min_value) / (max_value - min_value)
+        
     mask = np.where(np.sum(img, 2) == 0)
     img[mask] = [1., 1., 1.]
 
@@ -74,6 +79,7 @@ def event2frame(events):
 
 
 def main(args):
+    
     root_dir = args.root_dir
     output_dir = args.output_dir + f"_delta_{args.delta_t}_min_{args.min_event_num}"
     delta_t = args.delta_t
@@ -92,6 +98,7 @@ def main(args):
             os.makedirs(subdir)
 
         video = PSEELoader(os.path.join(root_dir, event_file))
+        start_
 
         # to iterate through a video:
         while not video.done:
