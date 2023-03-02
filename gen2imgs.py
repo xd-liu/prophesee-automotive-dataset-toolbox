@@ -6,9 +6,10 @@ from src.io.psee_loader import PSEELoader
 import cv2
 
 SENSOR_SIZE = (240, 304)
+LABEL_RATE = 500000
 
 
-def make_event_histogram(events, shape=(240, 304)):
+def make_event_histogram(args, events, shape=(240, 304)):
     """Event polarity histogram with shape [H, W, 2]."""
     H, W = shape
 
@@ -26,7 +27,7 @@ def make_event_histogram(events, shape=(240, 304)):
     return result
 
 
-def vis_hist(hist_nd):
+def vis_hist(args, hist_nd):
     img = np.stack([
         hist_nd[:, :, 0],
         np.zeros(hist_nd[:, :, 0].shape),
@@ -47,7 +48,7 @@ def vis_hist(hist_nd):
             img = img / max_value
     else:
         img = (img - min_value) / (max_value - min_value)
-        
+
     mask = np.where(np.sum(img, 2) == 0)
     img[mask] = [1., 1., 1.]
 
@@ -63,25 +64,32 @@ def vis_hist(hist_nd):
     img = img * 255.
 
     img = img.astype('uint8')
+    if args.bw:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     return img
 
 
-def event2frame(events):
-    events = np.vstack(
-        [events['x'], events['y'], events['t'], events['p'].astype(np.float) * 2 - 1]).T
+def event2frame(args, events):
+    events = np.vstack([
+        events['x'], events['y'], events['t'],
+        events['p'].astype(np.float) * 2 - 1
+    ]).T
 
     events = events.astype(np.float)
     # print(events[:,3].min(), )s
-    hist_nd = make_event_histogram(events, shape=SENSOR_SIZE)
-    img = vis_hist(hist_nd)
+    hist_nd = make_event_histogram(args, events, shape=SENSOR_SIZE)
+    img = vis_hist(args, hist_nd)
     return img
 
 
 def main(args):
-    
+
     root_dir = args.root_dir
     output_dir = args.output_dir + f"_delta_{args.delta_t}_min_{args.min_event_num}"
+    if args.bw:
+        output_dir += "_bw"
+
     delta_t = args.delta_t
 
     if not os.path.exists(output_dir):
@@ -98,7 +106,7 @@ def main(args):
             os.makedirs(subdir)
 
         video = PSEELoader(os.path.join(root_dir, event_file))
-        start_
+        drop_start = video.load_delta_t(LABEL_RATE + delta_t / 2)
 
         # to iterate through a video:
         while not video.done:
@@ -112,8 +120,10 @@ def main(args):
 
             curr_time = events[-1]['t']
             img_name = f"{curr_time}_{event_num}.png"
-            img = event2frame(events)
+            img = event2frame(args, events)
             cv2.imwrite(os.path.join(subdir, img_name), img)
+            if LABEL_RATE - delta_t > 0:
+                drop_intervel = video.load_delta_t(LABEL_RATE - delta_t)
 
         if args.dev:
             break
@@ -142,5 +152,9 @@ if __name__ == "__main__":
     parser.add_argument("--dev",
                         action="store_true",
                         help="Whether to run in dev mode.")
+    parser.add_argument(
+        "--bw",
+        action="store_true",
+        help="Whether to convert the output to black and white.")
     args = parser.parse_args()
     main(args)
